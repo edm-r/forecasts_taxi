@@ -2,3 +2,5 @@
 __pycache__/
 *.pytest_cache/
 MONSTRE_TP.md
+data/
+pipeline.log
