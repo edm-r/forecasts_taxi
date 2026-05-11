@@ -4,3 +4,6 @@ __pycache__/
 MONSTRE_TP.md
 data/
 pipeline.log
+mlruns/
+.dvc/
+.DS_Store
