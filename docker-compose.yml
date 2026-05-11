@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: mlflow
       POSTGRES_PASSWORD: mlflow
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -23,12 +23,14 @@ services:
              mlflow server
              --host 0.0.0.0
              --port 5000
+             --allowed-hosts '127.0.0.1:*,localhost:*,mlflow:5000'
+             --cors-allowed-origins 'http://127.0.0.1:*,http://localhost:*'
              --backend-store-uri $$MLFLOW_BACKEND_STORE_URI
              --default-artifact-root $$MLFLOW_DEFAULT_ARTIFACT_ROOT"
     depends_on:
       - postgres
     ports:
-      - "5000:5000"
+      - "${MLFLOW_HOST_PORT:-5001}:5000"
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
 
@@ -41,7 +43,7 @@ services:
     depends_on:
       - mlflow
     ports:
-      - "8000:8000"
+      - "${API_HOST_PORT:-8001}:8000"
 
   prometheus:
     image: prom/prometheus:v2.53.0
@@ -50,7 +52,7 @@ services:
     depends_on:
       - api
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
@@ -63,7 +65,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
-      - "3000:3000"
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
     volumes:
       - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
