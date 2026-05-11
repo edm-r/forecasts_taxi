@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
         "--sample-rows-per-file",
         type=int,
         default=50_000,
-        help="Nombre maximum de lignes échantillonnées par fichier.",
+        help="Nombre maximum de lignes échantillonnées par fichier. Utiliser 0 pour charger tous les enregistrements.",
     )
     parser.add_argument(
         "--tracking-uri",

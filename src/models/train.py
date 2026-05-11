@@ -64,12 +64,17 @@ def load_training_dataframe(
     resolved_paths = _resolve_training_paths(paths)
     rng = np.random.default_rng(random_state)
     frames: list[pd.DataFrame] = []
+    effective_sample_rows = (
+        None
+        if sample_rows_per_file is None or sample_rows_per_file <= 0
+        else sample_rows_per_file
+    )
 
     for path in resolved_paths:
         df = pd.read_parquet(path, columns=RAW_TAXI_COLUMNS)
-        if sample_rows_per_file is not None and len(df) > sample_rows_per_file:
+        if effective_sample_rows is not None and len(df) > effective_sample_rows:
             seed = int(rng.integers(0, 2**32 - 1))
-            df = df.sample(n=sample_rows_per_file, random_state=seed)
+            df = df.sample(n=effective_sample_rows, random_state=seed)
         frames.append(df)
 
     if not frames:

@@ -16,7 +16,7 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from models.features import MODEL_FEATURE_COLUMNS, build_feature_matrix, prepare_training_frame
-from models.train import train_tip_model
+from models.train import load_training_dataframe, train_tip_model
 
 
 def sample_raw_df(rows: int = 80) -> pd.DataFrame:
@@ -68,6 +68,19 @@ class TestModelFeatures:
 
 
 class TestTrainingMlflow:
+    def test_load_training_dataframe_zero_means_full_file(self, tmp_path):
+        path = tmp_path / "train.parquet"
+        expected = sample_raw_df(24)
+        expected.to_parquet(path, index=False)
+
+        loaded = load_training_dataframe(
+            paths=[Path(path)],
+            sample_rows_per_file=0,
+            random_state=42,
+        )
+
+        pd.testing.assert_frame_equal(loaded.reset_index(drop=True), expected.reset_index(drop=True))
+
     def test_train_tip_model(self, tmp_path):
         path = tmp_path / "train.parquet"
         sample_raw_df().to_parquet(path, index=False)
