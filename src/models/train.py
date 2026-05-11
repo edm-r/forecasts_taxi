@@ -33,7 +33,7 @@ try:  # pragma: no cover - dépendance optionnelle
     from lightgbm import LGBMRegressor
 
     _HAS_LIGHTGBM = True
-except ImportError:  # pragma: no cover
+except (ImportError, OSError):  # pragma: no cover
     from sklearn.ensemble import HistGradientBoostingRegressor
 
     _HAS_LIGHTGBM = False
@@ -153,20 +153,12 @@ def train_tip_model(
 
         figure_path = _log_feature_importance_figure(model, X_val, y_val, backend)
 
-        if backend == "lightgbm":
-            mlflow.lightgbm.log_model(
-                model,
-                artifact_path="model",
-                signature=signature,
-                input_example=X_val.head(3),
-            )
-        else:
-            mlflow.sklearn.log_model(
-                model,
-                artifact_path="model",
-                signature=signature,
-                input_example=X_val.head(3),
-            )
+        _log_model_artifacts(
+            model,
+            backend=backend,
+            signature=signature,
+            input_example=X_val.head(3),
+        )
 
         if figure_path is not None:
             mlflow.log_artifact(figure_path)
@@ -307,3 +299,29 @@ def _log_feature_importance_figure(
     fig.savefig(path, dpi=150)
     plt.close(fig)
     return str(path)
+
+
+def _log_model_artifacts(
+    model: Any,
+    *,
+    backend: str,
+    signature: Any,
+    input_example: pd.DataFrame,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_dir = Path(tmpdir) / "model"
+        if backend == "lightgbm" and hasattr(mlflow, "lightgbm"):
+            mlflow.lightgbm.save_model(
+                model,
+                path=str(model_dir),
+                signature=signature,
+                input_example=input_example,
+            )
+        else:
+            mlflow.sklearn.save_model(
+                model,
+                path=str(model_dir),
+                signature=signature,
+                input_example=input_example,
+            )
+        mlflow.log_artifacts(str(model_dir), artifact_path="model")
