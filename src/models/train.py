@@ -7,6 +7,7 @@ Entraînement tracké par MLflow et helpers de registry.
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+
 import mlflow
 import numpy as np
 import pandas as pd
@@ -167,7 +169,7 @@ def train_tip_model(
 
         if figure_path is not None:
             mlflow.log_artifact(figure_path)
-            Path(figure_path).unlink(missing_ok=True)
+            Path(figure_path).unlink(missing_ok=True)  # CORRIGÉ : figure_path au lieu de tmp_path
 
         run_id = run.info.run_id
         result = TrainingResult(
@@ -293,8 +295,10 @@ def _log_feature_importance_figure(
     top_names = [names[idx] for idx in order]
     top_values = values[order]
 
+    # CORRIGÉ : os.close(fd) ferme le descripteur Windows avant d'écrire dans le fichier
     fd, tmp_path = tempfile.mkstemp(prefix=f"feature_importance_{backend}_", suffix=".png")
-    Path(tmp_path).unlink(missing_ok=True)
+    os.close(fd)  # libère le verrou Windows sur le fichier
+
     path = Path(tmp_path)
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.barh(top_names[::-1], top_values[::-1], color="#2563eb")
@@ -302,7 +306,7 @@ def _log_feature_importance_figure(
     ax.set_xlabel("importance")
     fig.tight_layout()
     fig.savefig(path, dpi=150)
-    plt.close(fig)
+    plt.close(fig)  # ferme matplotlib pour libérer le fichier
     return str(path)
 
 

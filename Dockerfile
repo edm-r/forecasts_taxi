@@ -21,6 +21,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app/src \
     MLFLOW_MODEL_URI=models:/TipPredictor/Production
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
@@ -28,5 +32,4 @@ COPY src ./src
 COPY config.yaml ./
 
 EXPOSE 8000
-
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
