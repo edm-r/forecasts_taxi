@@ -16,6 +16,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from optim.parallel import (
+    benchmark_month_processing_workers,
     benchmark_io_readers,
     process_months_parallel,
     process_months_sequential,
@@ -75,6 +76,20 @@ class TestMonthProcessing:
 
         assert len(output_paths) == 2
         assert all(path.exists() for path in output_paths)
+
+    def test_benchmark_month_processing_workers(self, monthly_raw_data, tmp_path):
+        report = benchmark_month_processing_workers(
+            [1, 2],
+            worker_counts=[1, 2],
+            raw_dir=monthly_raw_data,
+            processed_dir=tmp_path / "benchmarks",
+        )
+
+        assert list(report["workers"]) == [1, 2]
+        assert (report["sequential_s"] >= 0.0).all()
+        assert (report["parallel_s"] >= 0.0).all()
+        assert (report["speedup"] > 0.0).all()
+        assert report["month_count"].tolist() == [2, 2]
 
 
 class TestCpuBoundExecutors:

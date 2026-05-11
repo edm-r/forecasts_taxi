@@ -9,6 +9,7 @@ Partie 2 — Exercices 2.3 et 2.4
 from __future__ import annotations
 
 import math
+import shutil
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 from time import perf_counter
@@ -88,6 +89,79 @@ def benchmark_month_processing(
         "parallel_s": parallel_s,
         "speedup": speedup,
     }
+
+
+def benchmark_month_processing_workers(
+    months: Iterable[int | tuple[int, int]],
+    *,
+    worker_counts: Iterable[int] = (1, 2, 4, 8),
+    year: int = 2023,
+    raw_dir: str | Path = "data/raw",
+    processed_dir: str | Path = "data/processed",
+    clean_output_dirs: bool = True,
+) -> pd.DataFrame:
+    """
+    Compare le temps séquentiel au temps parallèle pour plusieurs nombres
+    de workers et renvoie une table prête à tracer.
+
+    Les sorties sont isolées dans des sous-répertoires dédiés afin d'éviter
+    que les runs se marchent dessus lors des benchmarks répétés.
+    """
+
+    month_list = list(months)
+    if not month_list:
+        raise ValueError("La liste de mois à benchmarker ne peut pas être vide.")
+
+    worker_values = [int(worker) for worker in worker_counts]
+    if not worker_values:
+        raise ValueError("worker_counts ne peut pas être vide.")
+    if any(worker < 1 for worker in worker_values):
+        raise ValueError("Chaque worker count doit être >= 1.")
+
+    processed_root = Path(processed_dir)
+    sequential_dir = processed_root / "_benchmark_seq"
+    parallel_root = processed_root / "_benchmark_parallel"
+
+    _prepare_benchmark_output_dir(sequential_dir, clean=clean_output_dirs)
+    _prepare_benchmark_output_dir(parallel_root, clean=clean_output_dirs)
+
+    started_at = perf_counter()
+    process_months_sequential(
+        month_list,
+        year=year,
+        raw_dir=raw_dir,
+        processed_dir=sequential_dir,
+    )
+    sequential_s = perf_counter() - started_at
+
+    rows: list[dict[str, Any]] = []
+    for workers in worker_values:
+        worker_dir = parallel_root / f"workers_{workers}"
+        _prepare_benchmark_output_dir(worker_dir, clean=clean_output_dirs)
+
+        started_at = perf_counter()
+        process_months_parallel(
+            month_list,
+            year=year,
+            raw_dir=raw_dir,
+            processed_dir=worker_dir,
+            max_workers=workers,
+        )
+        parallel_s = perf_counter() - started_at
+
+        rows.append(
+            {
+                "workers": workers,
+                "sequential_s": sequential_s,
+                "parallel_s": parallel_s,
+                "speedup": (sequential_s / parallel_s) if parallel_s else math.inf,
+                "sequential_output_dir": str(sequential_dir),
+                "parallel_output_dir": str(worker_dir),
+                "month_count": len(month_list),
+            }
+        )
+
+    return pd.DataFrame(rows).sort_values("workers").reset_index(drop=True)
 
 
 def run_cpu_bound_with_threads(
@@ -236,3 +310,9 @@ def _run_cpu_bound(
 
 def _read_single_parquet(path: Path, columns: list[str] | None) -> pd.DataFrame:
     return pd.read_parquet(path, columns=columns)
+
+
+def _prepare_benchmark_output_dir(path: Path, *, clean: bool) -> None:
+    if clean and path.exists():
+        shutil.rmtree(path)
+    path.mkdir(parents=True, exist_ok=True)
